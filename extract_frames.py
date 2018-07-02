@@ -12,27 +12,32 @@ import os
 import cv2
 import numpy as np
 
+#get the absolute path of the video used
+path_video = str(input("Enter the absolute path of the video (between cotes ""): "))
+path = path_video + "_frames"
 
-path = os.getcwd() + "/ressources/fifa_test"
-
+#create the directory where we'll store the frames extracted
 if not os.path.exists(path):
     os.makedirs(path)
 
-vidcap = cv2.VideoCapture('./ressources/fifa_test.flv')
+vidcap = cv2.VideoCapture(path_video)
 success,image = vidcap.read()
 count = 0
 success = True
 fps = vidcap.get(cv2.CAP_PROP_FPS)
 lengthframe = int(vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
+
 print "fps = ", fps
 print "Video de duree : ", lengthframe/fps
-debut = input("Saisissez le début de la sauvegarde des images (s)")
-fin = input("Saisissez la fin de la sauvegarde des images (s)")
+intervalle = int(input("enter the number of frames between each frame extracted: "))
+#choose when we want to extract frames
+debut = input("Saisissez le début de la sauvegarde des images (s): ")
+fin = input("Saisissez la fin de la sauvegarde des images (s): ")
 
 
 while success:
 
-  if (count > debut*fps) & (count % 25 ==0) & (count < fin*fps):
+  if (count > debut*fps) & (count % intervalle ==0) & (count < fin*fps):
     cv2.imwrite(os.path.join(path , "frame%d.jpg" % count), image)
     print 'saved a new frame: n° ', success
   success,image = vidcap.read()
