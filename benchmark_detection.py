@@ -38,6 +38,10 @@ def IoU(bndbx1, bndbx2):
 
 # calculate precision and recall
 def precision_and_recall(bndbx_truth, bndbx_detected, IoU_min):
+    # ATTENTION : bndbx_detected = [(label, x1, y1, x2, y2, probability), ...]
+    # ATTENTION : precision and recall needs to be calculated on top K predictions
+    # classed by probability
+    # ATTENTION : we need to remove double detection
     n_T = len(bndbx_truth)
     n_P = len(bndbx_detected)
     n_TP = 0
