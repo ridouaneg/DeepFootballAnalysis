@@ -21,3 +21,22 @@ def detection_yolo(image_path):
             bndbx_detected.append([(xmin, ymin, xmax, ymax), proba])
 
     return bndbx_detected
+
+def detection_rcnn(image_path):
+    large, height = 1920, 1080
+    div = 2
+    
+    net = model_zoo.get_model('faster_rcnn_resnet50_v2a_voc', pretrained=True)
+    x, img = data.transforms.presets.ssd.load_test(image_path, short=int(height/div)) # short_max = 560
+    box_ids, scores, bboxes = net(x)
+    box_ids, scores, bboxes = box_ids.asnumpy(), scores.asnumpy(), bboxes.asnumpy()
+
+    bndbx_detected = []
+    p, q = box_ids.shape
+    for i in range(p):
+        if(net.classes[int(box_ids[i][0])] == 'person'):
+            xmin, ymin, xmax, ymax = int(bboxes[i][0]*div), int(bboxes[i][1]*div), int(bboxes[i][2]*div), int(bboxes[i][3]*div)
+            proba = scores[i][0]
+            bndbx_detected.append([(xmin, ymin, xmax, ymax), proba])
+
+    return bndbx_detected

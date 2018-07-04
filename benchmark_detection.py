@@ -2,17 +2,17 @@
 import utils
 import numpy as np
 import os
-#import detection
+import detection_yolo as yolo
+import matplotlib.pyplot as plt
 
 # get predictions from the detection method
-def predictions(image, detection_method="yolo"):
+def predictions(image_path, detection_method="yolo"):
     bndbx_detected = []
 
     if detection_method=="yolo":
-        #bndbx_detected = detection.yolo(path_image)
-        print(" ")
-    elif detection_method=="hsv":
-        print(" ")
+        bndbx_detected = yolo.detection_yolo(image_path)
+    elif detection_method=="rcnn":
+        bndbx_detected = yolo.detection_rcnn(image_path)
     elif detection_method=="kmeans":
         print(" ")
     else:
@@ -21,10 +21,10 @@ def predictions(image, detection_method="yolo"):
     return bndbx_detected
 
 def mean(l):
+    n = len(l)
     if n == 0:
         res = 0
     else:
-        n = len(l)
         sum = 0
         for i in range(n):
             sum += l[i]
@@ -38,16 +38,18 @@ def AP_compl(recalls, r):
         ind += 1
     return ind
 
-def IoU(bndbx1, bndbx2):
-    label, xmin1, ymin1, xmax1, ymax1 = bndbx1
-    label, xmin2, ymin2, xmax2, ymax2 = bndbx2
+def IoU(bndbx_d, bndbx_l):
+    xmin1, ymin1, xmax1, ymax1 = bndbx_d
+    label, xmin2, ymin2, xmax2, ymax2 = bndbx_l
 
-    intersection = 0
-    if xmax1 >= xmin2 and xmax1 <= xmax2:
-        if ymax2 >= ymin1 and ymax2 <= ymax1:
-            intersection = (xmax1 - xmin2) * (ymax2 - ymin1)
-    aire1 = (xmax1 - xmin1) * (ymax1 - ymin1)
-    aire2 = (xmax2 - xmin2) * (ymax2 - ymin2)
+    xA = max(xmin1, xmin2)
+    yA = max(ymin1, ymin2)
+    xB = min(xmax1, xmax2)
+    yB = min(ymax1, ymax2)
+    intersection = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+
+    aire1 = (xmax1 - xmin1 + 1) * (ymax1 - ymin1 + 1)
+    aire2 = (xmax2 - xmin2 + 1) * (ymax2 - ymin2 + 1)
     union = aire1 + aire2 - intersection
 
     eps = 10**(-8)
@@ -57,23 +59,24 @@ def IoU(bndbx1, bndbx2):
 
 # calculate precision and recall
 def precision_and_recall_top_k(bndbx_truth, bndbx_detected, IoU_min, k):
-    # ATTENTION : bndbx_detected = [ [(label, x1, y1, x2, y2), probability] , ...]
+    # ATTENTION : bndbx_detected = [ [(x1, y1, x2, y2), probability] , ...]
     # ATTENTION : precision and recall needs to be calculated on top K predictions
     # classed by probability
     # ATTENTION : we need to remove double detection
     bndbx_detected = bndbx_detected[0:k]
     n_T = len(bndbx_truth)
-    n_P = len(bndbx_detected)
+    n_P = k
     n_TP = 0
     n_FP = 0
 
     for i in range(n_P):
-        if (max([IoU(bndbx_detected[i][0], bndbx_truth[j][0]) for j in range(n_T)]) >= IoU_min):
+        l_tmp = [IoU(bndbx_detected[i][0], bndbx_truth[j][0]) for j in range(n_T)]
+        if (max(l_tmp) >= IoU_min):
             n_TP += 1
         else:
             n_FP += 1
 
-    precision = n_TP / (n_P)
+    precision = n_TP / n_P
     recall = n_TP / n_T
 
     return precision, recall
@@ -82,28 +85,50 @@ def precision_and_recall_list(bndbx_truth, bndbx_detected, IoU_min):
     precisions = []
     recalls = []
 
-    for k in range(len(bndbx_detected)):
+    for k in range(1, len(bndbx_detected)):
         precision, recall = precision_and_recall_top_k(bndbx_truth, bndbx_detected, IoU_min, k)
         precisions.append(precision)
         recalls.append(recall)
+
+    precisions.append(0)
+    recalls.append(1)
 
     return precisions, recalls
 
 def AP(bndbx_truth, bndbx_detected, IoU_min):
     precisions, recalls = precision_and_recall_list(bndbx_truth, bndbx_detected, IoU_min)
-    tmp = [0.10*i for i in range(11)]
+    tmp = [0.1*i for i in range(11)]
+    sum = 0
+
+    try:
+        i_tmp = recalls.index(1) + 1
+    except ValueError:
+        i_tmp = len(precisions) + 1
+
+    precisions = precisions[:i_tmp]
+    recalls = recalls[:i_tmp]
+
+    print('Precisions | Recalls')
+    print('--------------------')
+    for j in range(len(precisions)):
+        print("%.2f" % precisions[j], '      |   ', "%.2f" % recalls[j])
+
+    #plt.plot(recalls, precisions)
+    #plt.show()
+
     for r in tmp:
-        ind = AP_compl(recalls, r) # premier indice de recalls tq la valeur soit >= r
-        l = precisions[ind:]
-        p = max(l)
-        sum += p
-        # sum += max(precisions[AP_compl(recalls, r):])
+        # ind = AP_compl(recalls, r) # premier indice de recalls tq la valeur soit >= r
+        sum += max(precisions[AP_compl(recalls, r):])
+
     AP = (1 / 11) * sum
     return AP
 
-def mAP(path_test_repo_images, path_test_repo_labels):
-    IoU_min = 0.50
-    APs = []
+def mAP(path_test_repo_images, path_test_repo_labels, detection_method="yolo", IoU_min = 0.50):
+    """
+        Given two directories (images and associated labels) and a detection method,
+        return de Mean Average Precision for this method on the given datas.
+        Attention : datas must be sorted in alphabetical order !
+    """
 
     image_filenames = []
     label_filenames = []
@@ -114,11 +139,33 @@ def mAP(path_test_repo_images, path_test_repo_labels):
     image_filenames = sorted(image_filenames)
     label_filenames = sorted(label_filenames)
 
-    for image_filename, label_filename in image_filenames, label_filenames:
-        bndbx_truth = read_label(label_filename)
-        bndbx_detected = predictions(read_image(image_filename), detection_method="yolo")
-        APs.append(AP(bndbx_truth, bndbx_detected, IoU_min))
+    APs = []
+
+    print('')
+    print('mAP evaluation on the images of the test repository "images"')
+    print('Configuration : IoU >= ', IoU_min)
+
+    for image_filename, label_filename in zip(image_filenames, label_filenames):
+
+        print('')
+        print('Image name : ' + image_filename)
+        print('Processing..........')
+
+        bndbx_truth = utils.read_label(label_filename)
+        bndbx_detected = predictions(image_filename, detection_method)
+        print('Number of labelled objects : ', len(bndbx_truth))
+        print('Number of detected objects : ', len(bndbx_detected))
+
+        ap = AP(bndbx_truth, bndbx_detected, IoU_min)
+        APs.append(ap)
+        print('Average Precision (AP) : ', ap)
+
+        print('..........Finished')
+
     mAP = mean(APs)
+    print('')
+    print('Mean Average Precision (mAP) : ', mAP)
+    print('')
 
     return mAP
 

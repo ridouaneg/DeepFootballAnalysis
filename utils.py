@@ -34,5 +34,6 @@ def read_label(path_label):
             xM = int(coord.text)
         for coord in noeuds.xpath('bndbox/ymax'):
             yM = int(coord.text)
-        bounding_boxes.append((type, xm, ym, xM, yM))
+        if type == 'person':
+            bounding_boxes.append([(type, xm, ym, xM, yM)])
     return bounding_boxes
