@@ -1,21 +1,23 @@
 # Using YOLO to detect individuals and the ball in frames
 #encoding : utf-8
 
-#opening the file containing what yolov3 returns after processing an image
-# you need to run the programm in the folder containing prediction_details.txt
-file = open("prediction_details.txt",'r')
+from gluoncv import model_zoo, data, utils
+from matplotlib import pyplot as plt
 
-#tuple containing our data in the right format
-data = ()
+def detection_yolo(image_path):
+    large, height = 1920, 1080
+    div = 2
+    net = model_zoo.get_model('ssd_512_resnet50_v1_coco', pretrained=True)
+    x, img = data.transforms.presets.ssd.load_test(image_path, short=int(height/div)) # short_max = 560
+    box_ids, scores, bboxes = net(x)
+    box_ids, scores, bboxes = box_ids.asnumpy(), scores.asnumpy(), bboxes.asnumpy()
 
-try:
-    for line in file:
-        # processing the line, removing spaces
-        buffer = [ i for i in line.split(" ") if i != '']
-        #format of an element of the tuple returned :
-        # (class, left, top, right, bottom, probability) (all of them being strings)
-        data.append((buffer[1],buffer[4],buffer[5],buffer[6],buffer[7],buffer[2]))
+    bndbx_detected = []
+    n, p, q = box_ids.shape
+    for i in range(p):
+        if(net.classes[int(box_ids[0][i][0])] == 'person'):
+            xmin, ymin, xmax, ymax = int(bboxes[0][i][0]*div), int(bboxes[0][i][1]*div), int(bboxes[0][i][2]*div), int(bboxes[0][i][3]*div)
+            proba = scores[0][i][0]
+            bndbx_detected.append([(xmin, ymin, xmax, ymax), proba])
 
-finally:
-    file.close()
-    print(data)
+    return bndbx_detected
