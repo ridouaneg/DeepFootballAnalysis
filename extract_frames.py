@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 
 #get the absolute path of the video used
-path_video = "../Train/"+ str(input("entree nom video: "))
+path_video = str(input("entree nom video: "))
 path =  path_video + "_frames"
 
 #create the directory where we'll store the frames extracted
@@ -39,6 +39,6 @@ while success:
 
   if (count > debut*fps) & (count % intervalle ==0) & (count < fin*fps):
     cv2.imwrite(os.path.join(path , "frame%d.jpg" % count), image)
-   
+
   success,image = vidcap.read()
   count += 1

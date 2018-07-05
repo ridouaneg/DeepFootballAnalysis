@@ -4,6 +4,7 @@ import numpy as np
 import os
 import detection_yolo as yolo
 import matplotlib.pyplot as plt
+import time
 
 # get predictions from the detection method
 def predictions(image_path, detection_method="yolo"):
@@ -143,7 +144,11 @@ def mAP(path_test_repo_images, path_test_repo_labels, detection_method="yolo", I
 
     print('')
     print('mAP evaluation on the images of the test repository "images"')
-    print('Configuration : IoU >= ', IoU_min)
+    print('Configuration :')
+    print('.............. IoU minimum : ', IoU_min)
+    print('.............. Detection method : ', detection_method)
+
+    debut = time.clock()
 
     for image_filename, label_filename in zip(image_filenames, label_filenames):
 
@@ -158,13 +163,17 @@ def mAP(path_test_repo_images, path_test_repo_labels, detection_method="yolo", I
 
         ap = AP(bndbx_truth, bndbx_detected, IoU_min)
         APs.append(ap)
-        print('Average Precision (AP) : ', ap)
+        print('Average Precision (AP) : ', "%.2f" % ap)
 
         print('..........Finished')
 
     mAP = mean(APs)
+
+    fin = time.clock()
+
     print('')
-    print('Mean Average Precision (mAP) : ', mAP)
+    print('Mean Average Precision (mAP) : ', "%.2f" % mAP)
+    print('Execution time : ', "%.2f" % (fin - debut), ' secondes')
     print('')
 
     return mAP
